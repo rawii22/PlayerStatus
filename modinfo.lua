@@ -1,7 +1,9 @@
 name = "Player Status (server)"
 description = "View other player's status, including some other properties. Press \"\\\" to toggle the list.\nIf you want to manually change the max number of players shown, you can use the command ChangeScale(maxplayersnumber)."
 author = "rawii22 & lord_of_les_ralph"
-version = "2.0"
+version = "2.0.0.21"
+icon = "modicon.tex"
+icon_atlas = "modicon.xml"
 
 forumthread = ""
 

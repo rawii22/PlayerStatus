@@ -1,6 +1,0 @@
-Potentially add keybind? (make it "\"?)
-
-Now for making it multiplayer...
-For multiplayer compatability, just make a table containing all the data needed, adjust GetPlayerData to use that instead, 
-then compress that table using json and send it to the clients. They should be able to also use GetPlayerData since it was 
-modified...
