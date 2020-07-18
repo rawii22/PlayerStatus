@@ -1,10 +1,6 @@
-Starting from the middle, add half of the screen width moving to the right edge.
-To move it back on the screen, add half of the widget width to the left. (margin?)
-Then for the y-axis, add half the height of the screen up (either way) then add half the height of the widget downward.
-Then add a margin to make it lower than the stats section.
+Potentially add keybind? (make it "\"?)
 
-OOOOR, if starting from bottom left, add a screen width, up a half, left a little (margin), up a little (margin)
-
-For multiplayer compatability, just make a table containing all the data needed, adjust GetPlayerData to use that instead,
-then compress that table using json and send it to the clients. They should be able to also use GetPlayerData since it was
+Now for making it multiplayer...
+For multiplayer compatability, just make a table containing all the data needed, adjust GetPlayerData to use that instead, 
+then compress that table using json and send it to the clients. They should be able to also use GetPlayerData since it was 
 modified...
