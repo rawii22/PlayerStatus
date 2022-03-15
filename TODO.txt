@@ -1,0 +1,2 @@
+Explain the console commands we added.
+Update the description and readme to explain that the commands work based off of the server's version of AllPlayers.
