@@ -1,0 +1,14 @@
+Name,Column,Description,Labels,Assignees,Due Date,Milestone
+Configuration to hide player number,To Do,,,,,
+Include caves indicator,To Do,"Only show caves indicator if player is in caves.
+Don't show caves indicator if player is in overworld.",,,,
+Change font size terminology,To Do,,Feature,,,Version 1
+Include player ping,To Do,,,,,
+View penalties to stats,In Progress,,,,,
+Left-align stats,In Progress,Also make sure the text adjusts toward the right.,,,,
+"Configuration for ""toggle visibility"" keybind",Might Work,,Feature,,,
+Show creative/godmode only if active,Might Work,,Feature,,,
+Include character name,Might Work,,Feature,,,
+Configuration to hide player's own stats,Might Work,,Feature,,,
+Configuration to abbreviate stat names,Might Work,,Feature,,,
+Configuration for stat values,Might Work,"View stats as percentage, current/max, or both.",Feature,,,
