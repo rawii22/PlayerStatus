@@ -1,9 +1,18 @@
 name = "Player Status"
-description = "View other player's status, including some other properties. By default, press \"\\\" to toggle the list.\nIf you want to manually change the font size, you can use the command ChangeScale(*number*)."
+description = "View the stats of other players, including some other properties.\n"
+.."By default, press \"\\\" to toggle the list.\n"
+.."This mod also adds a few console commands. "
+.."ChangeScale(*number*) will manually change the font size.\n"
+.."--The following admin commands use the player number from the stat list.--\n"
+.."RevivePlayer(*playerNumber*) will revive players in either shard.\n"
+.."RefillStats(*playerNumber*) will refill the stats of players in either shard.\n"
+.."Godmode(*playerNumber*) will make a player enter godmode in either shard.\n"
 author = "rawii22 & lord_of_les_ralph"
-version = "3.0.0.0"
+version = "3.0.1"
 icon = "modicon.tex"
 icon_atlas = "modicon.xml"
+
+server_filter_tags = {"player status"}
 
 forumthread = ""
 

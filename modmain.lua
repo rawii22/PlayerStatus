@@ -1,3 +1,14 @@
+--[[
+Authors: Alberto and Ricardo Romanach
+GitHub page: https://github.com/rawii22/PlayerStatus
+
+Notes: In order to understand some terminology in the comments, I'll describe some stuff here.
+	Scenario 1: non-dedicated non-caves
+	Scenario 2: non-dedicated with caves
+	Scenario 3: dedicated non-caves
+	Scenario 4: dedicated with caves
+]]
+
 local Widget = GLOBAL.require("widgets/widget")
 local Text = GLOBAL.require("widgets/text")
 local json = GLOBAL.json
@@ -10,7 +21,6 @@ local HIDEOWNSTATS = GetModConfigData("HIDEOWNSTATS")
 local STATNUMFORMAT = GetModConfigData("STATNUMFORMAT")
 local STATSTEXT = GetModConfigData("ABBREVIATESTATS")
 local SCALE = GetModConfigData("SCALE")
-local TheWorld --since the world won't exist until later, we must define the shortcut later
 local externalPlayerList
 local closeMessage = "Press \""..TOGGLEKEY.."\" to close\n"
 
@@ -20,14 +30,13 @@ function IsEnabled()
 	return (HOSTONLY and GLOBAL.TheNet:GetIsServerAdmin()) or not HOSTONLY --for some reason, we cannot use ismastersim, so we must use a TheNet function
 end
 
+--This sets up the netvar for sending the player data from the server to clients (including the host when necessary)
+--Every player with a "player_classified" will have a whole copy of the player stat list.
 AddPrefabPostInit("player_classified", function(player)
-	TheWorld = GLOBAL.TheWorld
-	--This netvar is for sending the player data from the server to clients (including the host when necessary)
 	player._playerDataString = GLOBAL.net_string(player.GUID, "_playerDataString", "playerdatadirty")
 	
 	if IsEnabled() then  --taking advantage of the ismastersim check in one place
 		player:ListenForEvent("playerdatadirty", RefreshClientText, player)
-		print("player._parent: "..tostring(player._parent))
 	end
 end)
 
@@ -41,8 +50,12 @@ AddSimPostInit(function()
 		playerData:SetHAlign(GLOBAL.ANCHOR_LEFT)
 		playerData:SetAlpha(.8)
 
+		--only set up the periodic tasks on the server side
 		if GLOBAL.TheWorld.ismastersim then
+			--Scenario 2 and 4. Each shard will run it's own periodic task. (The IsMaster() and IsSecondary() functions will always return false if caves are not enabled)
 			if GLOBAL.TheShard:IsMaster() or GLOBAL.TheShard:IsSecondary() then
+				--In this periodic task, we collect the local player data and SEND it to the opposite shard via json and RPC.
+				--Originally, we tried sending all the player objects themselves, but those were too ridiculously large. Json was not able to encode all the data.
 				GLOBAL.TheWorld:DoPeriodicTask(30 * GLOBAL.FRAMES, function()
 					local r, result = pcall(json.encode, GetPlayerData(GLOBAL.AllPlayers, true))
 					if not r then print("[Player Status] Could not encode player stat data.") end
@@ -50,6 +63,7 @@ AddSimPostInit(function()
 						SendModRPCToShard(GetShardModRPC(modname, "SendPlayerList"), nil, nil, nil, result)
 					end
 				end)
+			--Scenario 1 and 3. There is only one server to set up a periodic task for. There's no need for an RPC since there's only one shard
 			else
 				GLOBAL.TheWorld:DoPeriodicTask(30 * GLOBAL.FRAMES, function() RefreshText(GetPlayerData(GLOBAL.AllPlayers)) end)
 			end
@@ -59,12 +73,6 @@ end)
 
 function CreateText()
 	playerData = Text("stint-ucr", SCALE, GetPlayerData(GLOBAL.AllPlayers))
-end
-
---for testing. calculated using the points from the config options using Desmos
-function GLOBAL.ChangeScale(playercount)
-	local size = 682.827/playercount + 1.8269
-	playerData:SetSize(size)
 end
 
 --update the text and then update netvar for clients. This will trigger the netvar's dirty function, RefreshClientText
@@ -195,6 +203,7 @@ GLOBAL.TheInput:AddKeyUpHandler(
 
 local playerList
 
+--Klei is really nice and provided a way to communicate between shards with the AddShardModRPCHandler mod util.
 --shardId is ID of the shard that sent the RPC
 --This is what receives the list of players from the opposite shard and combines them in the proper order (overworld first, then cave players) then saves it to the netvar through RefreshText.
 AddShardModRPCHandler(modname, "SendPlayerList", function(shardId, namespace, code, externalPlayerListJson)
@@ -224,41 +233,64 @@ AddShardModRPCHandler(modname, "SendPlayerList", function(shardId, namespace, co
 	end
 end)
 
+
 -----------ADDITIONAL CONSOLE FUNCTIONS-----------
 
-function GLOBAL.ShardRevivePlayer(playerNum)
-	SendModRPCToShard(GetShardModRPC(modname, "ShardInjection"), nil, nil, nil, "AllPlayers["..playerNum.."]:PushEvent(\"respawnfromghost\")")
+
+--for testing. calculated using the points from the config options using Desmos
+function GLOBAL.ChangeScale(playercount)
+	local size = 682.827/playercount + 1.8269
+	playerData:SetSize(size)
 end
 
-function GLOBAL.ShardRefillStats(playerNum)
-	SendModRPCToShard(GetShardModRPC(modname, "ShardInjection"), nil, nil, nil, "RefillStats("..playerNum..")")
-end
-
---This function expects to receive a player number based on what the player stat list shows (aka the server's version of AllPlayers)
-function GLOBAL.RefillStats(playerNum)
+--This function first figures out if the target function (fn) needs to be run on another shard (based on playerNum) and then either sends it to the other shard or executes it locally
+local function ExecuteOnShardWithPlayer(playerNum, fn, fnstring)
 	local shardPlayerNum = playerNum
 	if GLOBAL.TheShard:IsSecondary() then
 		shardPlayerNum = playerNum - #externalPlayerList --if we're in the caves, subtract the number of people in the overworld
 	end
 	if GLOBAL.TheShard:IsMaster() and playerNum > #GLOBAL.AllPlayers then --if called from the overworld, send the function to the caves
-		GLOBAL.ShardRefillStats(playerNum)
+		SendModRPCToShard(GetShardModRPC(modname, "ShardInjection"), nil, nil, nil, fnstring)
 		return
 	elseif GLOBAL.TheShard:IsSecondary() and shardPlayerNum <= 0 then --if called from the caves, send the function to the caves
-		GLOBAL.ShardRefillStats(playerNum)
+		SendModRPCToShard(GetShardModRPC(modname, "ShardInjection"), nil, nil, nil, fnstring)
 		return
 	end
-	if GLOBAL.TheWorld.ismastersim and GLOBAL.AllPlayers[shardPlayerNum] and not GLOBAL.AllPlayers[shardPlayerNum]:HasTag("playerghost") then
-		GLOBAL.AllPlayers[shardPlayerNum].components.health:SetPenalty(0)
-		GLOBAL.AllPlayers[shardPlayerNum].components.health:SetPercent(1)
-		GLOBAL.AllPlayers[shardPlayerNum].components.sanity:SetPercent(1)
-		GLOBAL.AllPlayers[shardPlayerNum].components.hunger:SetPercent(1)
-		GLOBAL.AllPlayers[shardPlayerNum].components.temperature:SetTemperature(25)
-		GLOBAL.AllPlayers[shardPlayerNum].components.moisture:SetPercent(0)
-	end
+	--this will run locally if the target player is in the same shard as the caller
+	fn(shardPlayerNum)
 end
 
-function GLOBAL.ShardGodmode(playerNum)
-	SendModRPCToShard(GetShardModRPC(modname, "ShardInjection"), nil, nil, nil, "AllPlayers["..playerNum.."].components.health.invincible = true")
+--These functions create a mini local function with the desired code, and then defers to ExecuteOnShardWithPlayer for proper execution.
+
+function GLOBAL.RevivePlayer(playerNum)
+	local function fn(playerNum)
+		GLOBAL.AllPlayers[playerNum]:PushEvent("respawnfromghost")
+	end
+	
+	ExecuteOnShardWithPlayer(playerNum, fn, "RevivePlayer("..playerNum..")")
+end
+
+function GLOBAL.RefillStats(playerNum)
+	local function fn(playerNum)
+		if GLOBAL.TheWorld.ismastersim and GLOBAL.AllPlayers[playerNum] and not GLOBAL.AllPlayers[playerNum]:HasTag("playerghost") then
+			GLOBAL.AllPlayers[playerNum].components.health:SetPenalty(0)
+			GLOBAL.AllPlayers[playerNum].components.health:SetPercent(1)
+			GLOBAL.AllPlayers[playerNum].components.sanity:SetPercent(1)
+			GLOBAL.AllPlayers[playerNum].components.hunger:SetPercent(1)
+			GLOBAL.AllPlayers[playerNum].components.temperature:SetTemperature(25)
+			GLOBAL.AllPlayers[playerNum].components.moisture:SetPercent(0)
+		end
+	end
+	
+	ExecuteOnShardWithPlayer(playerNum, fn, "RefillStats("..playerNum..")")
+end
+
+function GLOBAL.Godmode(playerNum)
+	local function fn(playerNum)
+		GLOBAL.c_godmode(GLOBAL.AllPlayers[playerNum])
+	end
+	
+	ExecuteOnShardWithPlayer(playerNum, fn, "Godmode("..playerNum..")")
 end
 
 --very dangerous RPC, which is why it's not accessible from the console
