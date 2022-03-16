@@ -21,7 +21,6 @@ local HIDEOWNSTATS = GetModConfigData("HIDEOWNSTATS")
 local STATNUMFORMAT = GetModConfigData("STATNUMFORMAT")
 local STATSTEXT = GetModConfigData("ABBREVIATESTATS")
 local SCALE = GetModConfigData("SCALE")
---local TheWorld --since the world won't exist until later, we must define the shortcut later
 local externalPlayerList
 local closeMessage = "Press \""..TOGGLEKEY.."\" to close\n"
 
@@ -34,7 +33,6 @@ end
 --This sets up the netvar for sending the player data from the server to clients (including the host when necessary)
 --Every player with a "player_classified" will have a whole copy of the player stat list.
 AddPrefabPostInit("player_classified", function(player)
-	--TheWorld = GLOBAL.TheWorld
 	player._playerDataString = GLOBAL.net_string(player.GUID, "_playerDataString", "playerdatadirty")
 	
 	if IsEnabled() then  --taking advantage of the ismastersim check in one place
