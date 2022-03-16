@@ -12,6 +12,8 @@ version = "3.0.1"
 icon = "modicon.tex"
 icon_atlas = "modicon.xml"
 
+server_filter_tags = {"player status"}
+
 forumthread = ""
 
 api_version = 10
