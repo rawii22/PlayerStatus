@@ -9,7 +9,6 @@ Notes: In order to understand some terminology in the comments, I'll describe so
 	Scenario 4: dedicated with caves
 ]]
 
-
 local Widget = GLOBAL.require("widgets/widget")
 local Text = GLOBAL.require("widgets/text")
 local json = GLOBAL.json
@@ -76,12 +75,6 @@ end)
 
 function CreateText()
 	playerData = Text("stint-ucr", SCALE, GetPlayerData(GLOBAL.AllPlayers))
-end
-
---for testing. calculated using the points from the config options using Desmos
-function GLOBAL.ChangeScale(playercount)
-	local size = 682.827/playercount + 1.8269
-	playerData:SetSize(size)
 end
 
 --update the text and then update netvar for clients. This will trigger the netvar's dirty function, RefreshClientText
@@ -242,7 +235,15 @@ AddShardModRPCHandler(modname, "SendPlayerList", function(shardId, namespace, co
 	end
 end)
 
+
 -----------ADDITIONAL CONSOLE FUNCTIONS-----------
+
+
+--for testing. calculated using the points from the config options using Desmos
+function GLOBAL.ChangeScale(playercount)
+	local size = 682.827/playercount + 1.8269
+	playerData:SetSize(size)
+end
 
 --This function first figures out if the target function (fn) needs to be run on another shard (based on playerNum) and then either sends it to the other shard or executes it locally
 local function ExecuteOnShardWithPlayer(playerNum, fn, fnstring)
@@ -257,33 +258,21 @@ local function ExecuteOnShardWithPlayer(playerNum, fn, fnstring)
 		SendModRPCToShard(GetShardModRPC(modname, "ShardInjection"), nil, nil, nil, fnstring)
 		return
 	end
-	--this will run if the target player is in the same shard as the caller
-	fn(playerNum)
+	--this will run locally if the target player is in the same shard as the caller
+	fn(shardPlayerNum)
 end
+
+--These functions create a mini local function with the desired code, and then defers to ExecuteOnShardWithPlayer for proper execution.
 
 function GLOBAL.RevivePlayer(playerNum)
 	local function fn(playerNum)
-		AllPlayers[playerNum]:PushEvent("respawnfromghost")
+		GLOBAL.AllPlayers[playerNum]:PushEvent("respawnfromghost")
 	end
 	
 	ExecuteOnShardWithPlayer(playerNum, fn, "RevivePlayer("..playerNum..")")
-
-	--SendModRPCToShard(GetShardModRPC(modname, "ShardInjection"), nil, nil, nil, "AllPlayers["..playerNum.."]:PushEvent(\"respawnfromghost\")")
 end
 
---This function expects to receive a player number based on what the player stat list shows (aka the server's version of AllPlayers)
 function GLOBAL.RefillStats(playerNum)
-	--[[local shardPlayerNum = playerNum
-	if GLOBAL.TheShard:IsSecondary() then
-		shardPlayerNum = playerNum - #externalPlayerList --if we're in the caves, subtract the number of people in the overworld
-	end
-	if GLOBAL.TheShard:IsMaster() and playerNum > #GLOBAL.AllPlayers then --if called from the overworld, send the function to the caves
-		GLOBAL.ShardRefillStats(playerNum)
-		return
-	elseif GLOBAL.TheShard:IsSecondary() and shardPlayerNum <= 0 then --if called from the caves, send the function to the caves
-		GLOBAL.ShardRefillStats(playerNum)
-		return
-	end]]
 	local function fn(playerNum)
 		if GLOBAL.TheWorld.ismastersim and GLOBAL.AllPlayers[playerNum] and not GLOBAL.AllPlayers[playerNum]:HasTag("playerghost") then
 			GLOBAL.AllPlayers[playerNum].components.health:SetPenalty(0)
@@ -304,8 +293,6 @@ function GLOBAL.Godmode(playerNum)
 	end
 	
 	ExecuteOnShardWithPlayer(playerNum, fn, "Godmode("..playerNum..")")
-	
-	--SendModRPCToShard(GetShardModRPC(modname, "ShardInjection"), nil, nil, nil, "AllPlayers["..playerNum.."].components.health.invincible = true")
 end
 
 --very dangerous RPC, which is why it's not accessible from the console
